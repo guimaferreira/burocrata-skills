@@ -8,4 +8,4 @@ Instalação:
 npx skills add guimaferreira/burocrata-skills --skill emitir-documentos-br
 ```
 
-O repositório inclui scripts locais dentro da própria skill, então a instalação não depende do pacote npm da CLI do Burocrata.
+O repositório inclui scripts locais do `burocrata.com.br` dentro da própria skill, então a instalação não depende de um pacote npm público.

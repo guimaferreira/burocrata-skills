@@ -13,17 +13,17 @@ import {
 } from "./api.js";
 
 function printHelp() {
-  process.stdout.write(`Burocrata local CLI
+  process.stdout.write(`burocrata.com.br local helper
 
 Usage:
-  node scripts/burocrata-cli.js login --token <token> [--base-url <url>]
-  node scripts/burocrata-cli.js logout
-  node scripts/burocrata-cli.js whoami [--json]
-  node scripts/burocrata-cli.js credits [--json]
-  node scripts/burocrata-cli.js search [query] [--limit <n>] [--json]
-  node scripts/burocrata-cli.js schema <tool-name> [--json]
-  node scripts/burocrata-cli.js run <tool-name> --input '{"cnpj":"..."}' [--json]
-  node scripts/burocrata-cli.js run <tool-name> --input-file <file.json> [--json]
+  node scripts/burocrata.com.br.js login --token <token> [--base-url <url>]
+  node scripts/burocrata.com.br.js logout
+  node scripts/burocrata.com.br.js whoami [--json]
+  node scripts/burocrata.com.br.js credits [--json]
+  node scripts/burocrata.com.br.js search [query] [--limit <n>] [--json]
+  node scripts/burocrata.com.br.js schema <tool-name> [--json]
+  node scripts/burocrata.com.br.js run <tool-name> --input '{"cnpj":"..."}' [--json]
+  node scripts/burocrata.com.br.js run <tool-name> --input-file <file.json> [--json]
 `);
 }
 
@@ -128,7 +128,7 @@ async function main(argv) {
   if (command === "schema") {
     const toolName = positionals[1];
     if (!toolName) {
-      throw new Error("Provide a tool name. Example: node scripts/burocrata-cli.js schema receita-federal/pgfn");
+      throw new Error("Provide a tool name. Example: node scripts/burocrata.com.br.js schema receita-federal/pgfn");
     }
 
     const data = await apiRequest(`/api/external/tools/${encodeToolPath(toolName)}`, { flags });
@@ -147,7 +147,7 @@ async function main(argv) {
   if (command === "run") {
     const toolName = positionals[1];
     if (!toolName) {
-      throw new Error("Provide a tool name. Example: node scripts/burocrata-cli.js run receita-federal/pgfn --input '{\"cpf_cnpj\":\"...\"}'");
+      throw new Error("Provide a tool name. Example: node scripts/burocrata.com.br.js run receita-federal/pgfn --input '{\"cpf_cnpj\":\"...\"}'");
     }
 
     const input = await readInputPayload(flags);
