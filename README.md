@@ -1,9 +1,11 @@
 # Burocrata Skills
 
-Skill pública do Burocrata para agentes como Claude Code e OpenAI Codex.
+Skill pública e open source do Burocrata para agentes como Claude Code e OpenAI Codex.
 
 Instalação:
 
 ```bash
 npx skills add guimaferreira/burocrata-skills --skill burocrata
 ```
+
+O repositório inclui scripts locais dentro da própria skill, então a instalação não depende do pacote npm da CLI do Burocrata.
