@@ -1,0 +1,4 @@
+version: 1
+display_name: Emitir Documentos BR
+short_description: Emite e consulta documentos brasileiros
+default_prompt: Emitir e consultar documentos brasileiros com os scripts da skill
