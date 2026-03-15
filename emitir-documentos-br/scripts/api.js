@@ -3,6 +3,7 @@ import path from "node:path";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
 const DEFAULT_BASE_URL = process.env.BUROCRATA_API_BASE_URL || "https://burocrata.com.br";
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 
 function getConfigDir() {
   return process.env.BUROCRATA_CONFIG_DIR || path.join(os.homedir(), ".burocrata");
@@ -58,13 +59,30 @@ export function normalizeBaseUrl(baseUrl) {
   return String(baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
 }
 
+export function isLocalBaseUrl(baseUrl) {
+  try {
+    const parsed = new URL(normalizeBaseUrl(baseUrl));
+    return LOCAL_HOSTNAMES.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function sanitizeConfiguredBaseUrl(baseUrl) {
+  const normalized = normalizeBaseUrl(baseUrl);
+  if (!normalized || isLocalBaseUrl(normalized)) {
+    return DEFAULT_BASE_URL;
+  }
+  return normalized;
+}
+
 export async function resolveBaseUrl(flags = {}) {
   if (typeof flags["base-url"] === "string") {
     return normalizeBaseUrl(flags["base-url"]);
   }
 
   const config = await readConfig();
-  return normalizeBaseUrl(config.baseUrl || DEFAULT_BASE_URL);
+  return sanitizeConfiguredBaseUrl(config.baseUrl || DEFAULT_BASE_URL);
 }
 
 export async function resolveToken(flags = {}) {
@@ -100,17 +118,36 @@ export async function apiRequest(pathname, options = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    method: options.method || "GET",
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let response;
+  try {
+    response = await fetch(`${baseUrl}${pathname}`, {
+      method: options.method || "GET",
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (error) {
+    const fallbackBaseUrl = !options.baseUrl && isLocalBaseUrl(baseUrl) ? DEFAULT_BASE_URL : null;
+    if (fallbackBaseUrl && fallbackBaseUrl !== baseUrl) {
+      response = await fetch(`${fallbackBaseUrl}${pathname}`, {
+        method: options.method || "GET",
+        headers,
+        body: options.body ? JSON.stringify(options.body) : undefined,
+      });
+    } else {
+      const requestError = new Error(
+        `Could not reach ${baseUrl}. Check your connection or run with --base-url https://burocrata.com.br.`
+      );
+      requestError.cause = error;
+      throw requestError;
+    }
+  }
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(payload.error || `Request failed with status ${response.status}`);
     error.status = response.status;
     error.payload = payload;
+    error.baseUrl = baseUrl;
     throw error;
   }
 

@@ -7,9 +7,11 @@ import {
   parseArgv,
   printJson,
   printTable,
+  readConfig,
   resolveBaseUrl,
   resolveToken,
   writeConfig,
+  isLocalBaseUrl,
 } from "./api.js";
 
 function printHelp() {
@@ -18,6 +20,7 @@ function printHelp() {
 Usage:
   node scripts/burocrata.com.br.js login --token <token> [--base-url <url>]
   node scripts/burocrata.com.br.js logout
+  node scripts/burocrata.com.br.js doctor [--json]
   node scripts/burocrata.com.br.js whoami [--json]
   node scripts/burocrata.com.br.js credits [--json]
   node scripts/burocrata.com.br.js search [query] [--limit <n>] [--json]
@@ -41,6 +44,60 @@ async function readInputPayload(flags) {
   }
 
   throw new Error("Provide --input or --input-file.");
+}
+
+async function runDoctor(flags) {
+  const config = await readConfig();
+  const baseUrl = await resolveBaseUrl(flags);
+  const token = await resolveToken(flags);
+  const detectedLocalConfig = Boolean(config.baseUrl && isLocalBaseUrl(config.baseUrl));
+
+  const report = {
+    ok: false,
+    baseUrl,
+    configBaseUrl: config.baseUrl || null,
+    usedProductionFallback: detectedLocalConfig,
+    tokenPresent: Boolean(token),
+    authenticated: false,
+    user: null,
+    nextStep: "",
+  };
+
+  if (!token) {
+    report.nextStep = "Generate a token in https://burocrata.com.br/cli and run login.";
+    return report;
+  }
+
+  try {
+    const me = await apiRequest("/api/external/me", { flags, token, baseUrl });
+    report.ok = true;
+    report.authenticated = true;
+    report.user = me.user;
+    report.nextStep = "Search the desired document with the local helper.";
+    return report;
+  } catch (error) {
+    report.nextStep = formatCliError(error);
+    return report;
+  }
+}
+
+function formatCliError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  const status = error?.status;
+
+  if (status === 401 || /Não autorizado/i.test(message)) {
+    return "Authentication failed. Generate a fresh token in https://burocrata.com.br/cli and run: node scripts/burocrata.com.br.js login --token <token>";
+  }
+
+  if (status === 402 || /INSUFFICIENT_CREDITS/i.test(message)) {
+    return "Insufficient credits. Recharge in https://burocrata.com.br/preco and try again.";
+  }
+
+  if (/Could not reach/i.test(message)) {
+    return "Connection failed. Confirm internet access or run with --base-url https://burocrata.com.br.";
+  }
+
+  return message;
 }
 
 async function main(argv) {
@@ -74,6 +131,26 @@ async function main(argv) {
   if (command === "logout") {
     await clearConfig();
     process.stdout.write("Local Burocrata session removed.\n");
+    return;
+  }
+
+  if (command === "doctor") {
+    const report = await runDoctor(flags);
+    if (wantsJson(flags)) {
+      printJson(report);
+      return;
+    }
+
+    process.stdout.write(`Base URL: ${report.baseUrl}\n`);
+    if (report.usedProductionFallback) {
+      process.stdout.write("Detected localhost in saved config. Using https://burocrata.com.br automatically.\n");
+    }
+    process.stdout.write(`Token: ${report.tokenPresent ? "present" : "missing"}\n`);
+    process.stdout.write(`Authenticated: ${report.authenticated ? "yes" : "no"}\n`);
+    if (report.user?.email) {
+      process.stdout.write(`User: ${report.user.email}\n`);
+    }
+    process.stdout.write(`Next step: ${report.nextStep}\n`);
     return;
   }
 
@@ -179,6 +256,6 @@ async function main(argv) {
 }
 
 main(process.argv.slice(2)).catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  console.error(formatCliError(error));
   process.exit(1);
 });
