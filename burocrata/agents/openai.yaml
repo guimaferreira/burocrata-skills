@@ -1,0 +1,4 @@
+version: 1
+display_name: Burocrata
+short_description: Emite documentos brasileiros com o Burocrata
+default_prompt: Emitir e consultar documentos brasileiros com o Burocrata
